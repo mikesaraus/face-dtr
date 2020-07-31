@@ -3,109 +3,72 @@
     <div
       :key="notif.message"
       :class="`error q-py-xs q-mb-lg text-center text-white text-caption ${(notif.error) ? 'bg-negative' : 'bg-positive'}`"
+      id="notification"
       v-if="notif"
     >
       {{ notif.message }}
     </div>
-    <div id="videoArea">
-      <video
-        id="video"
-        ref="video"
-        width="720"
-        height="560"
-        autoplay
-        muted
-      ></video>
-      <canvas
-        id="canvasDetection"
-        ref="canvasDetection"
-      ></canvas>
-    </div>
 
-    <q-card class="bg-grey-1 no-shadow q-ma-sm">
-      <q-card-section
-        class="text-h6 text-grey-7"
-        id="video-options"
-      >
-        <q-select
-          filled
-          @input="resetFaceDetect(true)"
-          v-model="selectedFaceOption"
-          :options="selectionFaceOption"
-          label="Face Dectector"
-        >
-          <template v-slot:no-option>
-            <q-item>
-              <q-item-section class="text-grey">
-                No results
-              </q-item-section>
-            </q-item>
-          </template>
-        </q-select>
+    <q-card class="text-center no-shadow bg-transparent q-mt-md">
+      <q-card-section class="q-pa-xs q-pt-md">
+        <span :class="`text-h6 text-grey-7 text-weight-light`" :key="datestamp" style="letter-spacing: 0.2em;">{{ datestamp }}</span>
       </q-card-section>
 
-      <q-card-section
-        class="text-h6 text-grey-7"
-        id="video-options"
-      >
-        <q-select
-          filled
-          @input="changeCamera"
-          v-model="camera"
-          :options="videoDevices"
-          label="Select Camera"
-        >
-          <template v-slot:no-option>
-            <q-item>
-              <q-item-section class="text-grey">
-                No results
-              </q-item-section>
-            </q-item>
-          </template>
-        </q-select>
+      <q-card-section class="q-pa-xs">
+        <q-toolbar>
+          <q-toolbar-title class="text-negative text-h1 text-weight-bold">
+            <span class="blinking" :key="timestamp">{{ timestamp }}</span>
+          </q-toolbar-title>
+        </q-toolbar>
       </q-card-section>
 
-      <q-card-section
-        class="text-h6 text-grey-7"
-        id="history"
-      >
-        <History />
+      <q-card-section>
+        <div id="videoArea">
+          <video
+            id="video"
+            ref="video"
+            width="720"
+            height="560"
+            autoplay
+            muted
+          ></video>
+
+          <canvas
+            id="canvasDetection"
+            ref="canvasDetection"
+          ></canvas>
+
+          <input type="checkbox" v-model="verified" id="check">
+          <label class="check-label" v-if="verifying" for="check">
+            <div class="check-icon"></div>
+          </label>
+        </div>
       </q-card-section>
     </q-card>
   </q-page>
 </template>
 
 <script>
-import { mapActions } from 'vuex'
+import { mapActions, mapState } from 'vuex'
 import * as faceapi from 'face-api.js'
-import History from '../components/History'
+import { date } from 'quasar'
 
 let faceDetector
 
 export default {
   name: 'PageIndex',
 
-  components: {
-    History: History
-  },
-
   data () {
     return {
-      minFaceMatch: 0.6,
-      maxTestImages: 10,
-      selectedFaceOption: 'TinyFaceDetectorOptions',
-      selectionFaceOption: ['TinyFaceDetectorOptions', 'SsdMobilenetv1Options'],
+      today: Date.now(),
+      cameraAccess: false,
       facesData: {
         users: ['Mike Saraus', 'Bruce Lee', 'Bill Gates', 'Jomar Ebus', 'Sidney Diente'],
         descriptors: []
       },
-      camera: null,
       video: {},
       canvas: {},
       videoSize: {},
-      videoDevices: [],
-      audioDevices: [],
-      otherDevices: [],
       constrains: {
         audio: false,
         video: {
@@ -118,11 +81,25 @@ export default {
       },
       notif: { error: false, message: 'Loading...' },
       scanIds: [],
-      predictionCount: 10
+      predictions: [],
+      doAdd: null,
+      verified: false,
+      verifying: false
     }
   },
 
   computed: {
+    ...mapState('devices', ['devices', 'camera', 'selectedFaceOption']),
+    ...mapState('setting', ['minFaceMatch', 'maxTestImages', 'predictionInterval']),
+
+    timestamp () {
+      return date.formatDate(this.today, 'h:mm:ss A')
+    },
+
+    datestamp () {
+      return date.formatDate(this.today, 'Do MMMM, YYYY')
+    },
+
     faceapiOptions () {
       return (this.selectedFaceOption && this.selectedFaceOption === 'TinyFaceDetectorOptions') ? new faceapi.TinyFaceDetectorOptions() : new faceapi.SsdMobilenetv1Options()
     }
@@ -132,17 +109,35 @@ export default {
     this.initializeApp()
   },
 
+  async created () {
+    this.$root.$on('newCamera', this.newCamera)
+    this.$root.$on('resetFaceDetect', this.resetFaceDetect)
+    setInterval(() => {
+      this.getToday()
+    })
+  },
+
   methods: {
     ...mapActions('history', ['addNewRecord']),
+    ...mapActions('devices', ['updateVideoDevices', 'updateAudioDevices', 'updateOtherDevices', 'changeCamera']),
 
     doLog (logs) {
       console.log(logs)
     },
 
-    async addRecord (data) {
-      this.addNewRecord(data)
+    getToday (ampm = false) {
+      this.today = Date.now()
+      return ampm ? date.formatDate(this.today, 'A') : this.today
+    },
+
+    async addRecord () {
+      const confirm = await this.addNewRecord(this.doAdd)
+      this.doAdd = null
       this.scanIds = []
-      // this.resetFaceDetect(true)
+      if (confirm === true) {
+        this.completeVerify()
+      }
+      // this.resetFaceDetect()
     },
 
     async initializeDetector () {
@@ -156,6 +151,12 @@ export default {
       })
       this.notif = (this.camera && this.camera.error) ? { error: true, message: `${this.camera.error}!` } : null
       await this.faceDetect()
+      if (this.cameraAccess !== true) {
+        if (this.cameraAccess !== false) {
+          console.error('Failed to access camera!')
+          this.notif = this.cameraAccess
+        }
+      }
     },
 
     async initializeApp () {
@@ -176,6 +177,7 @@ export default {
     async startVideo () {
       this.notif = { error: false, message: 'Checking camera access...' }
       if ('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices && 'enumerateDevices' in navigator.mediaDevices) {
+        this.notif = null
         this.video = this.$refs.video
         this.canvas = this.$refs.canvasDetection
         this.videoSize = { width: this.video.width, height: this.video.height }
@@ -190,19 +192,23 @@ export default {
         }).then(async (stream) => {
           this.video.srcObject = stream
           this.video.play()
+          this.cameraAccess = true
           await navigator.mediaDevices.enumerateDevices().then(devices => {
-            this.videoDevices = devices.filter(device => device.kind === 'videoinput')
-            this.audioDevices = devices.filter(device => device.kind === 'audioinput')
-            this.otherDevices = devices.filter(device => device.kind !== 'audioinput' && device.kind !== 'videoinput')
+            this.updateVideoDevices(devices.filter(device => device.kind === 'videoinput'))
+            this.updateAudioDevices(devices.filter(device => device.kind === 'audioinput'))
+            this.updateOtherDevices(devices.filter(device => device.kind !== 'audioinput' && device.kind !== 'videoinput'))
             // console.log(devices)
-            this.camera = this.videoDevices.length ? this.videoDevices[0] : { error: 'No video input device detected' }
+            if (!this.camera) this.changeCamera(this.devices.video.length ? this.devices.video[0] : { error: 'No video input device detected' })
           })
         }).catch(error => {
-          this.notif = { error: true, message: 'Could not access camera!' }
-          console.error(error)
+          const e = { error: true, message: 'Could not access camera!', dev: error }
+          this.notif = e
+          this.cameraAccess = e
         })
       } else {
-        this.notif = { error: true, message: 'Failed to access camera!' }
+        const e = { error: true, message: 'Could not access camera!' }
+        this.notif = e
+        this.cameraAccess = e
       }
     },
 
@@ -215,31 +221,49 @@ export default {
           if (detections && detections.length) {
             const faceMatcher = new faceapi.FaceMatcher(this.facesData.descriptors, this.minFaceMatch)
             const resizedDetections = await faceapi.resizeResults(detections, this.videoSize)
-            const matched = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor))
-            faceapi.draw.drawFaceLandmarks(this.canvas, resizedDetections)
-            matched.forEach(async (face, i) => {
+            const matched = await resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor))
+            if (!this.verifying) faceapi.draw.drawFaceLandmarks(this.canvas, resizedDetections)
+            await matched.forEach(async (face, i) => {
               const box = resizedDetections[i].detection.box
               new faceapi.draw.DrawBox(box, { label: `${face.label} (${faceapi.utils.round(face.distance * 100, 0)}%)`, lineWidth: 2, boxColor: 'green' })
                 .draw(this.canvas)
               if (face && face.label && face.label.toLowerCase() !== 'unknown') {
                 const indentity = await this.interpolatePredictions(face.label)
-                if (this.scanIds.length >= this.predictionCount) {
-                  await this.addRecord({ name: indentity, time: Date.now(), interval: this.predictionCount })
+                if (this.scanIds.length >= this.maxTestImages) {
+                  this.doAdd = await {
+                    name: indentity,
+                    time: Date.now(),
+                    time_str: date.formatDate(Date.now(), 'Do MMM h:mm:ss A'),
+                    avatar: `/data/users/${indentity}/1.jpg`,
+                    predictions: this.predictions,
+                    interval: this.predictionInterval
+                  }
                 }
               }
             })
-            resizedDetections.forEach(async (result) => {
+            await resizedDetections.forEach(async (result) => {
               const { age, gender, genderProbability, expressions } = result
-              const expressionValues = Object.values(expressions)
-              const expressionList = Object.keys(expressions)
+              const expressionValues = await Object.values(expressions)
+              const expressionList = await Object.keys(expressions)
               let mode = null
               let modeVal = 0
-              expressionValues.forEach((val, id) => {
+              await expressionValues.forEach((val, id) => {
                 if (faceapi.utils.round(val) > modeVal) {
                   modeVal = faceapi.utils.round(val)
                   mode = expressionList[id]
                 }
               })
+              if (this.doAdd) {
+                this.doAdd = await {
+                  ...this.doAdd,
+                  age: faceapi.utils.round(age, 0),
+                  gender: gender,
+                  gender_probability: faceapi.utils.round(genderProbability * 100, 0),
+                  expression: mode,
+                  expression_probability: faceapi.utils.round(modeVal * 100, 0)
+                }
+                await this.addRecord()
+              }
               new faceapi.draw.DrawTextField(
                 [
                   `${faceapi.utils.round(age, 0)} years old`,
@@ -260,7 +284,7 @@ export default {
       }
     },
 
-    resetFaceDetect (restart = false, timer = 2500) {
+    resetFaceDetect (restart = true, timer = 2500) {
       try {
         if (faceDetector) clearInterval(faceDetector)
         if (restart) {
@@ -296,22 +320,34 @@ export default {
     },
 
     interpolatePredictions (value) {
-      this.scanIds = [value].concat(this.scanIds).slice(0, this.predictionCount)
-      const Predictions = this.scanIds.reduce((counts, word) => { counts[word] = ++counts[word] || 1; return counts }, [])
+      this.scanIds = [value].concat(this.scanIds).slice(0, this.maxTestImages)
+      this.predictions = this.scanIds.reduce((counts, word) => { counts[word] = ++counts[word] || 1; return counts }, [])
       let Predicted = value
       let Posibility = 0
-      const PredictionsKey = Object.keys(Predictions)
+      const PredictionsKey = Object.keys(this.predictions)
       PredictionsKey.forEach((val, key) => {
-        if (Predictions[val] > Posibility) {
-          Posibility = Predictions[val]
+        if (this.predictions[val] > Posibility) {
+          Posibility = this.predictions[val]
           Predicted = val
         }
       })
+      // if (this.scanIds.length === this.maxTestImages) console.log('Predictions', this.predictions)
       // console.log('Data', this.scanIds)
-      // console.log('Keys', Object.keys(Predictions))
-      console.log('Predictions', Predictions)
-      console.log('Predicted', Predicted)
+      // console.log('Keys', Object.keys(this.predictions))
+      // console.log('Predictions', this.predictions)
+      // console.log('Predicted', Predicted)
       return Predicted
+    },
+
+    completeVerify () {
+      this.verifying = true
+      setTimeout(() => {
+        this.verified = true
+        setTimeout(() => {
+          this.verifying = false
+          this.verified = false
+        }, 1500)
+      }, 1500)
     },
 
     snapShotVideo () {
@@ -320,13 +356,13 @@ export default {
       return this.canvas.toDataURL('image/webp')
     },
 
-    changeCamera () {
+    newCamera () {
       console.log('Selected Camera', this.camera)
       this.startVideo()
     },
 
     beforeDestroy () {
-      this.resetFaceDetect()
+      this.resetFaceDetect(false)
     }
   }
 }
@@ -344,4 +380,91 @@ export default {
 #canvasDetection {
   position: absolute;
 }
+
+.blinking {
+  animation: blinkingText 5s infinite;
+}
+
+@keyframes blinkingText {
+  0%{color: #C10015;}
+  49%{color: transparent;}
+  50%{color: #C10015;}
+  99%{color: transparent;}
+  100%{color: #C10015;}
+}
+
+.check-label {
+  position: absolute;
+  top: 40%;
+  height: 125px;
+  width: 125px;
+  display: inline-block;
+  border: 5px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  border-left-color: #5cb85c;
+  animation: rotate 1.2s linear infinite;
+}
+@keyframes rotate {
+  50%{
+    border-left-color: #9b59b6;
+  }
+  75%{
+    border-left-color: #e67e22;
+  }
+  100%{
+    transform: rotate(360deg);
+  }
+}
+
+.check-label .check-icon{
+  display: none;
+}
+
+.check-label .check-icon:after{
+  position: absolute;
+  content: "";
+  top: 50%;
+  left: 28px;
+  transform: scaleX(-1) rotate(135deg);
+  height: 56px;
+  width: 28px;
+  border-top: 4px solid #5cb85c;
+  border-right: 4px solid #5cb85c;
+  transform-origin: left top;
+  animation: check-icon 0.8s ease;
+}
+@keyframes check-icon {
+  0%{
+    height: 0;
+    width: 0;
+    opacity: 1;
+  }
+  20%{
+    height: 0;
+    width: 28px;
+    opacity: 1;
+  }
+  40%{
+    height: 56px;
+    width: 28px;
+    opacity: 1;
+  }
+  100%{
+    height: 56px;
+    width: 28px;
+    opacity: 1;
+  }
+}
+input#check {
+  display: none;
+}
+input#check:checked ~ .check-label .check-icon{
+  display: block;
+}
+input#check:checked ~ .check-label{
+  animation: none;
+  border-color: #5cb85c;
+  transition: border 0.5s ease-out;
+}
+
 </style>

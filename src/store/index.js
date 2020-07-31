@@ -2,6 +2,8 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 
 import history from './history/index'
+import devices from './devices/index'
+import setting from './setting/index'
 
 Vue.use(Vuex)
 
@@ -17,7 +19,7 @@ Vue.use(Vuex)
 export default function (/* { ssrContext } */) {
   const Store = new Vuex.Store({
     modules: {
-      history
+      history, devices, setting
     },
 
     // enable strict mode (adds overhead!)
