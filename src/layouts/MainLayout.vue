@@ -68,7 +68,7 @@ export default {
 
   data () {
     return {
-      rightDrawerOpen: true
+      rightDrawerOpen: !this.$q.screen.gt.xs
     }
   },
 

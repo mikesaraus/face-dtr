@@ -35,7 +35,6 @@
             >
               <q-item
                 :key="index"
-                @click="doPopup(item)"
                 clickable
                 v-ripple
               >
@@ -45,7 +44,7 @@
                   </q-avatar>
                 </q-item-section>
 
-                <q-item-section>
+                <q-item-section @click="doPopup(item)">
                   <q-item-label lines="1">
                     {{item.name }}
                   </q-item-label>
