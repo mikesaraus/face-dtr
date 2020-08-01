@@ -20,7 +20,7 @@
 
     <q-card-section>
       <q-scroll-area
-        style="height: 500px;"
+        :style="`height: ${this.$q.screen.gt.xs ? 500 : 300}px;`"
         id="virstual-scroll-target"
       >
         <q-virtual-scroll

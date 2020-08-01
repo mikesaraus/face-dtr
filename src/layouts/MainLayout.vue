@@ -8,7 +8,7 @@
           dense
           flat
           :ripple="false"
-          icon="face"
+          icon="engineering"
           size="19px"
           color="grey"
           no-caps
@@ -16,17 +16,16 @@
         />
 
         <q-toolbar-title>
-          Facial Recognition System
+          Facial Recognition {{this.$q.screen.gt.xs ? 'System' : ''}}
         </q-toolbar-title>
 
-        <div>v{{ $q.version }}</div>
+        <div v-if="$q.screen.gt.xs">v{{ $q.version }}</div>
 
         <q-btn
           flat
           round
           dense
           class="text-grey"
-          v-if="$q.screen.gt.xs"
           @click="$q.fullscreen.toggle()"
           :icon="$q.fullscreen.isActive ? 'fullscreen_exit' : 'fullscreen'"
         >
@@ -42,7 +41,7 @@
       show-if-above
       bordered
       content-class="bg-grey-2"
-      :width="450"
+      :width="$q.screen.gt.xs ? 450 : 300"
     >
       <RightDrawer :rightDrawerOpen="rightDrawerOpen"></RightDrawer>
     </q-drawer>
@@ -68,7 +67,7 @@ export default {
 
   data () {
     return {
-      rightDrawerOpen: !this.$q.screen.gt.xs
+      rightDrawerOpen: this.$q.screen.gt.xs
     }
   },
 

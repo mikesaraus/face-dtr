@@ -16,8 +16,8 @@
 
       <q-card-section class="q-pa-xs">
         <q-toolbar>
-          <q-toolbar-title class="text-negative text-h1 text-weight-bold">
-            <span class="blinking" :key="timestamp">{{ timestamp }}</span>
+          <q-toolbar-title class="text-negative">
+            <span :class="`blinking ${this.$q.screen.gt.xs ? 'text-h1' : 'text-h2'} text-weight-bold`" :key="timestamp">{{ timestamp }}</span>
           </q-toolbar-title>
         </q-toolbar>
       </q-card-section>
@@ -27,8 +27,8 @@
           <video
             id="video"
             ref="video"
-            width="720"
-            height="560"
+            :width="$q.platform.is.mobile ? 320 : 720"
+            :height="$q.platform.is.mobile ? 0 : 540"
             autoplay
             muted
           ></video>
@@ -110,7 +110,7 @@ export default {
   },
 
   async created () {
-    this.$root.$on('newCamera', this.newCamera)
+    this.$root.$on('newCamera', this.switchCamera)
     this.$root.$on('resetFaceDetect', this.resetFaceDetect)
     setInterval(() => {
       this.getToday()
@@ -133,7 +133,6 @@ export default {
     async addRecord () {
       const confirm = await this.addNewRecord(this.doAdd)
       this.doAdd = null
-      this.scanIds = []
       if (confirm === true) {
         this.completeVerify()
       }
@@ -191,7 +190,12 @@ export default {
           ...this.constrains
         }).then(async (stream) => {
           this.video.srcObject = stream
-          this.video.play()
+          await this.video.play()
+          const height = this.video.videoHeight / (this.video.videoWidth / this.video.width)
+          this.video.setAttribute('width', this.video.width)
+          this.video.setAttribute('height', height)
+          this.canvas.setAttribute('width', this.video.width)
+          this.canvas.setAttribute('height', height)
           this.cameraAccess = true
           await navigator.mediaDevices.enumerateDevices().then(devices => {
             this.updateVideoDevices(devices.filter(device => device.kind === 'videoinput'))
@@ -230,6 +234,7 @@ export default {
               if (face && face.label && face.label.toLowerCase() !== 'unknown') {
                 const indentity = await this.interpolatePredictions(face.label)
                 if (this.scanIds.length >= this.maxTestImages) {
+                  this.scanIds = []
                   this.doAdd = await {
                     name: indentity,
                     time: Date.now(),
@@ -356,7 +361,7 @@ export default {
       return this.canvas.toDataURL('image/webp')
     },
 
-    newCamera () {
+    switchCamera () {
       console.log('Selected Camera', this.camera)
       this.startVideo()
     },

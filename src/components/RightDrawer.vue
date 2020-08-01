@@ -143,16 +143,13 @@ export default {
     },
 
     newCamera (val) {
+      console.log(val, 'New Camera')
       this.$root.$emit('newCamera')
       return this.changeCamera(val)
     },
 
     initCam () {
-      try {
-        this.selectedCamera = this.camera
-      } catch (error) {
-        console.error(error)
-      }
+      if (this.camera !== this.selectedCamera) this.selectedCamera = this.camera
     },
 
     endCam () {
