@@ -38,21 +38,21 @@
                 clickable
                 v-ripple
               >
-                <q-item-section avatar>
+                <q-item-section @click="doPopupImg(item)" avatar>
                   <q-avatar>
-                    <img :src="item.avatar">
+                    <img :src="item.face">
                   </q-avatar>
                 </q-item-section>
 
                 <q-item-section @click="doPopup(item)">
-                  <q-item-label lines="1">
-                    {{item.name }}
+                  <q-item-label lines="1" class="text-weight-medium">
+                    {{ item.name }}
                   </q-item-label>
                   <q-item-label
                     caption
                     lines="2"
                   >
-                    <span class="text-weight-bold"><span class="text-weight-regular">Date/Time:</span> {{item.time_str}}</span>
+                    <span class="text-weight-regular">{{ item.time_str }}</span>
                   </q-item-label>
                 </q-item-section>
 
@@ -87,16 +87,19 @@
         </q-virtual-scroll>
       </q-scroll-area>
     </q-card-section>
+    <q-dialog v-if="activeUser" v-model="popupImg">
+        <img :src="activeUser.face">
+    </q-dialog>
     <q-dialog v-if="activeUser" v-model="popup" seamless position="bottom">
       <q-card style="width: 375px">
         <q-linear-progress :value="1" color="primary" />
 
         <q-card-section class="row items-center no-wrap">
-          <q-avatar class="q-mr-md">
-            <img :src="activeUser.avatar">
+          <q-avatar class="cursor-pointer q-mr-md" @click="doPopupImg(activeUser)">
+            <img :src="activeUser.face" style="max-width: 100%;">
           </q-avatar>
           <div>
-            <div class="text-weight-bold text-subtitle1">{{ activeUser.name }}</div>
+            <div class="text-grey-9 text-weight-medium text-subtitle1">{{ activeUser.name }}</div>
             <div class="text-grey">{{ activeUser.time_str }}</div>
           </div>
           <q-space />
@@ -133,6 +136,7 @@ export default {
   data () {
     return {
       popup: false,
+      popupImg: false,
       recent: [],
       activeUser: null
     }
@@ -155,6 +159,11 @@ export default {
     async doPopup (user) {
       this.activeUser = user
       this.popup = true
+    },
+
+    async doPopupImg (user) {
+      this.activeUser = user
+      this.popupImg = true
     },
 
     async goTo (lnk) {

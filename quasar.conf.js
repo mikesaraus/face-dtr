@@ -162,25 +162,32 @@ module.exports = function (/* ctx */) {
 
     // Full list of options: https://quasar.dev/quasar-cli/developing-electron-apps/configuring-electron
     electron: {
-      bundler: 'packager', // 'packager' or 'builder'
+      bundler: 'builder', // 'packager' or 'builder'
 
-      packager: {
-        // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
+      // packager: {
+      //   // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
 
-        // OS X / Mac App Store
-        // appBundleId: '',
-        // appCategoryType: '',
-        // osxSign: '',
-        // protocol: 'myapp://path',
+      //   // OS X / Mac App Store
+      //   // appBundleId: '',
+      //   // appCategoryType: '',
+      //   // osxSign: '',
+      //   // protocol: 'myapp://path',
 
-        // Windows only
-        // win32metadata: { ... }
-      },
+      //   // Windows only
+      //   // win32metadata: { ... }
+      // },
 
       builder: {
         // https://www.electron.build/configuration/configuration
 
-        appId: 'face-dtr'
+        appId: 'com.face-dtr.app',
+        win: {
+          target: 'nsis'
+        },
+        publish: {
+          provider: 's3',
+          bucket: 'myS3bucket'
+        }
       },
 
       // More info: https://quasar.dev/quasar-cli/developing-electron-apps/node-integration

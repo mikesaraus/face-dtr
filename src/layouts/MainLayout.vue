@@ -8,7 +8,7 @@
           dense
           flat
           :ripple="false"
-          icon="engineering"
+          icon="camera"
           size="19px"
           color="grey"
           no-caps
@@ -25,6 +25,7 @@
           flat
           round
           dense
+          ref="fullscreen"
           class="text-grey"
           @click="$q.fullscreen.toggle()"
           :icon="$q.fullscreen.isActive ? 'fullscreen_exit' : 'fullscreen'"
@@ -67,7 +68,7 @@ export default {
 
   data () {
     return {
-      rightDrawerOpen: this.$q.screen.gt.xs
+      rightDrawerOpen: this.$q.screen.gt.sm
     }
   },
 

@@ -9,20 +9,27 @@
       {{ notif.message }}
     </div>
 
-    <q-card class="text-center no-shadow bg-transparent q-mt-md">
-      <q-card-section class="q-pa-xs q-pt-md">
-        <span :class="`text-h6 text-grey-7 text-weight-light`" :key="datestamp" style="letter-spacing: 0.2em;">{{ datestamp }}</span>
+    <q-card class="text-center no-shadow bg-transparent">
+      <q-card-section :class="`q-pa-none q-ma-none ${this.$q.screen.gt.xs ? 'q-pt-md' : 'q-pt-xs'}`">
+          <span :class="`text-h6 text-grey-7 text-weight-light`" :key="datestamp" :style="`letter-spacing: ${this.$q.screen.gt.xs ? 0.2 : 0.1}em;`">{{ datestamp }}</span>
       </q-card-section>
 
-      <q-card-section class="q-pa-xs">
-        <q-toolbar>
-          <q-toolbar-title class="text-negative">
-            <span :class="`blinking ${this.$q.screen.gt.xs ? 'text-h1' : 'text-h2'} text-weight-bold`" :key="timestamp">{{ timestamp }}</span>
-          </q-toolbar-title>
-        </q-toolbar>
+      <q-card-section :key="today" class="row q-pa-none q-ma-none  items-center text-center justify-center">
+        <q-card :style="`width: 100%; max-width: ${this.$q.screen.gt.sm ? 150 : 70}px;`" :class="`text-center bg-grey-2 ${this.$q.screen.gt.sm ? 'q-pa-sm q-ma-sm' : 'q-pa-xs q-ma-xs'}`">
+          <span :class="`${getToday('A') === 'AM' ? 'text-blue-9' : 'text-red-9'} text-weight-bold ${this.$q.screen.gt.sm ? 'text-h1' : 'text-h3'}`">{{ getToday('hh') }}</span>
+        </q-card>
+        <q-card :style="`width: 100%; max-width: ${this.$q.screen.gt.sm ? 150 : 70}px;`" :class="`text-center bg-grey-2 ${this.$q.screen.gt.sm ? 'q-pa-sm q-ma-sm' : 'q-pa-xs q-ma-xs'}`">
+          <span :class="`${getToday('A') === 'AM' ? 'text-blue-9' : 'text-red-9'} text-weight-bold ${this.$q.screen.gt.sm ? 'text-h1' : 'text-h3'}`">{{ getToday('mm') }}</span>
+        </q-card>
+        <q-card :style="`width: 100%; max-width: ${this.$q.screen.gt.sm ? 150 : 70}px;`" :class="`text-center bg-grey-2 ${this.$q.screen.gt.sm ? 'q-pa-sm q-ma-sm' : 'q-pa-xs q-ma-xs'}`">
+          <span :class="`blinking text-grey-9 text-weight-bold ${this.$q.screen.gt.sm ? 'text-h1' : 'text-h3'}`">{{ getToday('ss') }}</span>
+        </q-card>
+        <q-card :style="`width: 100%; max-width: ${this.$q.screen.gt.sm ? 150 : 70}px;`" :class="`hidden text-center ${this.$q.screen.gt.sm ? 'q-pa-sm q-ma-sm' : 'q-pa-xs q-ma-xs'}`">
+          <span :class="`text-grey-4 text-weight-bold ${this.$q.screen.gt.sm ? 'text-h1' : 'text-h3'}`">{{ getToday('SS') }}</span>
+        </q-card>
       </q-card-section>
 
-      <q-card-section>
+      <q-card-section class="q-pa-md q-my-md">
         <div id="videoArea">
           <video
             id="video"
@@ -63,7 +70,7 @@ export default {
       today: Date.now(),
       cameraAccess: false,
       facesData: {
-        users: ['Mike Saraus', 'Bruce Lee', 'Bill Gates', 'Jomar Ebus', 'Sidney Diente'],
+        users: ['Mike Saraus', 'Mark Raymund Saraus', 'Thio Joe Saraus', 'Bill Gates'],
         descriptors: []
       },
       video: {},
@@ -91,10 +98,6 @@ export default {
   computed: {
     ...mapState('devices', ['devices', 'camera', 'selectedFaceOption']),
     ...mapState('setting', ['minFaceMatch', 'maxTestImages', 'predictionInterval']),
-
-    timestamp () {
-      return date.formatDate(this.today, 'h:mm:ss A')
-    },
 
     datestamp () {
       return date.formatDate(this.today, 'Do MMMM, YYYY')
@@ -125,9 +128,9 @@ export default {
       console.log(logs)
     },
 
-    getToday (ampm = false) {
+    getToday (format = 'h:mm:ss A') {
       this.today = Date.now()
-      return ampm ? date.formatDate(this.today, 'A') : this.today
+      return date.formatDate(this.today, format)
     },
 
     async addRecord () {
@@ -179,30 +182,27 @@ export default {
         this.notif = null
         this.video = this.$refs.video
         this.canvas = this.$refs.canvasDetection
-        this.videoSize = { width: this.video.width, height: this.video.height }
-        faceapi.matchDimensions(this.canvas, this.videoSize, true)
         this.constrains.video = {
           width: this.video.width,
           height: this.video.height
         }
-        if (this.camera && !this.camera.error) this.constrains.video.deviceId = { exact: this.camera.deviceId }
+        if (this.camera && typeof this.camera === 'object' && !this.camera.error) this.constrains.video.deviceId = { exact: this.camera.deviceId }
         navigator.mediaDevices.getUserMedia({
           ...this.constrains
         }).then(async (stream) => {
+          window.stream = stream
           this.video.srcObject = stream
           await this.video.play()
-          const height = this.video.videoHeight / (this.video.videoWidth / this.video.width)
-          this.video.setAttribute('width', this.video.width)
-          this.video.setAttribute('height', height)
-          this.canvas.setAttribute('width', this.video.width)
-          this.canvas.setAttribute('height', height)
+          this.video.height = this.video.videoHeight / (this.video.videoWidth / this.video.width)
+          this.videoSize = { width: this.video.width, height: this.video.height }
+          faceapi.matchDimensions(this.canvas, this.videoSize, true)
           this.cameraAccess = true
           await navigator.mediaDevices.enumerateDevices().then(devices => {
             this.updateVideoDevices(devices.filter(device => device.kind === 'videoinput'))
             this.updateAudioDevices(devices.filter(device => device.kind === 'audioinput'))
             this.updateOtherDevices(devices.filter(device => device.kind !== 'audioinput' && device.kind !== 'videoinput'))
             // console.log(devices)
-            if (!this.camera) this.changeCamera(this.devices.video.length ? this.devices.video[0] : { error: 'No video input device detected' })
+            if (!this.camera || typeof this.camera !== 'object' || this.camera.error) this.changeCamera(this.devices.video.length ? this.devices.video[0] : { error: 'No video input device detected' })
           })
         }).catch(error => {
           const e = { error: true, message: 'Could not access camera!', dev: error }
@@ -265,7 +265,8 @@ export default {
                   gender: gender,
                   gender_probability: faceapi.utils.round(genderProbability * 100, 0),
                   expression: mode,
-                  expression_probability: faceapi.utils.round(modeVal * 100, 0)
+                  expression_probability: faceapi.utils.round(modeVal * 100, 0),
+                  face: await this.snapShotVideo()
                 }
                 await this.addRecord()
               }
@@ -356,9 +357,13 @@ export default {
     },
 
     snapShotVideo () {
-      this.canvas.getContext('2d').drawImage(this.video, 0, 0)
-      // Other browsers will fall back to image/png
-      return this.canvas.toDataURL('image/webp')
+      const canvas = document.createElement('canvas')
+      const source = this.video
+      faceapi.matchDimensions(canvas, source, true)
+      canvas.getContext('2d').drawImage(source, 0, 0)
+      // Other browsers will fall back to image/webp
+      const img = canvas.toDataURL('image/png')
+      return img
     },
 
     switchCamera () {
@@ -387,15 +392,14 @@ export default {
 }
 
 .blinking {
-  animation: blinkingText 5s infinite;
+  transform-origin: center top;
+  animation-fill-mode: both;
+  animation: blinkingText 1s infinite;
 }
 
-@keyframes blinkingText {
-  0%{color: #C10015;}
-  49%{color: transparent;}
-  50%{color: #C10015;}
-  99%{color: transparent;}
-  100%{color: #C10015;}
+@keyframes blinkingText{
+  from{opacity: 1;}
+  to{opacity: 0.5;}
 }
 
 .check-label {
@@ -460,12 +464,15 @@ export default {
     opacity: 1;
   }
 }
+
 input#check {
   display: none;
 }
+
 input#check:checked ~ .check-label .check-icon{
   display: block;
 }
+
 input#check:checked ~ .check-label{
   animation: none;
   border-color: #5cb85c;
