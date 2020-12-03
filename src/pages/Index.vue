@@ -70,7 +70,7 @@ export default {
       today: Date.now(),
       cameraAccess: false,
       facesData: {
-        users: ['Mike Saraus', 'Mark Raymund Saraus', 'Thio Joe Saraus', 'Bill Gates'],
+        users: ['Mike Saraus', 'Bill Gates', 'JJ'],
         descriptors: []
       },
       video: {},
@@ -229,11 +229,11 @@ export default {
             if (!this.verifying) faceapi.draw.drawFaceLandmarks(this.canvas, resizedDetections)
             await matched.forEach(async (face, i) => {
               const box = resizedDetections[i].detection.box
-              new faceapi.draw.DrawBox(box, { label: `${face.label} (${faceapi.utils.round(face.distance * 100, 0)}%)`, lineWidth: 2, boxColor: 'green' })
+              new faceapi.draw.DrawBox(box, { label: `${face.label} (${faceapi.utils.round((1 - face.distance) * 100, 0)}%)`, lineWidth: 2, boxColor: 'green' })
                 .draw(this.canvas)
               if (face && face.label && face.label.toLowerCase() !== 'unknown') {
                 const indentity = await this.interpolatePredictions(face.label)
-                if (this.scanIds.length >= this.maxTestImages) {
+                if (this.scanIds.length >= this.maxTestImages && face.distance <= 0.5) {
                   this.scanIds = []
                   this.doAdd = await {
                     name: indentity,

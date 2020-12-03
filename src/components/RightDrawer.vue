@@ -110,7 +110,7 @@ export default {
 
   data () {
     return {
-      demo: false,
+      demo: true,
       whatAboutADM: false,
       getHelp: false,
       whatAboutPrivacy: false,
